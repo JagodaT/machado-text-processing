@@ -15,3 +15,5 @@ wordcloud
 tidytext
 stm
 drlib
+kableExtra
+htmlwidgets

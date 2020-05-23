@@ -7,7 +7,7 @@ output:
     toc: true
     toc_float: true
     number_sections: true
-    syntax_highlight: tango
+    highlight: tango
     code_folding: hide
 ---
 
@@ -23,7 +23,15 @@ library(wordcloud)
 library(tidytext)
 library(stm)
 library(drlib)
+library(kableExtra)
+library(htmlwidgets)
 ```
+
+
+```{r, fig.cap="Machado de Assis"}
+knitr::include_graphics("machado_busto.jpg")
+```
+
 
 # OCR
 
@@ -42,14 +50,14 @@ Vamos utilizar está página de Dom Casmurro:
 knitr::include_graphics("dom_casmurro.jpg")
 ```
 
-Primeiramente, cropamos o texto para melhorar o processamento:
+Primeiramente, cropamos o texto e aumentamos o contraste para melhorar o processamento:
 
 ```{r}
-knitr::include_graphics("dom_casmurro_crop2.png")
+knitr::include_graphics("dom_casmurro_crop_enhance.png")
 ```
 
 
-Utilizando a biblioteca `magick` para melhorar a imagem para processamento:
+Utilizando a biblioteca `magick` para melhorar a imagem para processamento, obtemos o seguinte resultado após utilizar o `tesseract()`:
 
 ```{r}
 texto_crop <- image_read("dom_casmurro_crop2.png") %>%
@@ -99,6 +107,18 @@ df_livros_raw <- names(livros) %>% map_dfr(~{
 #   filter(str_detect(texto, "Mrs"))
 ```
 
+## Stopwords
+Stopwords são palavras que não carregam conteúdo, como preposições e artigos. Em geral é útil removê-las para a ánalise textual. Aqui vemos alguns exemplos de stopwords:
+
+```{r}
+df_stopwords_pt <- read_csv("stopwords_pt.txt", col_names = F) %>%
+  rename(word=X1)
+df_stopwords_pt %>% 
+  head(10) %>%
+  knitr::kable() %>% 
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width=F)
+```
+
 
 Removendo stopwords e numerações em algarismos romanos (que indicam o número do capítulo)
 
@@ -106,8 +126,7 @@ Removendo stopwords e numerações em algarismos romanos (que indicam o número 
 
 romanos <- c(as.character(utils::as.roman(1:200)),paste0(as.character(utils::as.roman(1:200)),"."))
 
-df_stopwords_pt <- read_csv("stopwords_pt.txt", col_names = F) %>%
-  rename(word=X1)
+
 
 
 df_livros_clean <- df_livros_raw %>% 
@@ -140,59 +159,96 @@ df_livros_clean %>%
 ```
 
 
-# Word Cloud
+# Word Cloud {.tabset .tabset-pills}
 
 Podemos exibir a frequência de palavras utilizando uma wordcloud:
+
+## Dom Casmurro {-}
 
 ```{r}
 
 
 
-## tentativa de facet: pesquisar mais
+#pal <- RColorBrewer::brewer.pal(8,"Dark2")
 
-# 
-# wordclouds <- df_livros_clean$livro%>%unique() %>% map(~{
-#   df_livros_clean %>%
-#     filter(livro==.x) %>%
-#     count(word, sort=T) %>%
-#     with(wordcloud(word, n, random.order = FALSE, max.words = 40, colors=pal))
-#   
-# })
-# 
-#   df_livros_clean %>%
-#     filter(livro=="Esau_Jacob") %>%
-#     count(word, sort=T) %>%
-#  with(wordcloud(word, n, random.order = FALSE, max.words = 40, colors=pal))
-# 
-# grid.arrange(wordclouds)
-# 
-# 
-# df_livros_clean %>%
-#   count(livro, word, sort=T) %>%
-#   group_by(livro) %>%
-#   top_n(15, n) %>%
-#   mutate(angle = 90 * sample(c(0, 1), n(), replace = TRUE, prob = c(60, 40))) %>%
-#   ungroup() %>%
-#   ggplot(aes(
-#     label = word, size = n,
-#     #color = factor(sample.int(10, nrow(df_livros_clean%>%count(livro, word, sort=T)), replace = TRUE)),
-#     angle = angle
-#   )) +
-#   geom_text_wordcloud_area() +
-#   scale_size_area(max_size = 24) +
-#   theme_minimal() +
-#   facet_wrap(~livro)
-
-
-
-pal <- RColorBrewer::brewer.pal(8,"Dark2")
-df_livros_clean %>%
+dom_casmurro <- df_livros_clean %>%
   filter(livro=="Dom_Casmurro") %>%
   count(word, sort=T) %>%
-with(wordcloud(word, n, random.order = FALSE, max.words = 50, colors=pal))
+  head(100) %>%
+  wordcloud2::wordcloud2(size=2.5)
+#with(wordcloud(word, n, random.order = FALSE, max.words = 50, colors=pal))
 
 
 
+saveWidget(dom_casmurro,"dom_casmurro_cloud.html",selfcontained = F)
+webshot::webshot("dom_casmurro_cloud.html","dom_casmurro_cloud.png",vwidth = 1992, vheight = 1744, delay =10)
+
+```
+
+## Memórias Póstumas {-}
+
+```{r}
+
+memorias_postumas <- df_livros_clean %>%
+  filter(livro=="Memorias_Postumas") %>%
+  count(word, sort=T) %>%
+  head(100) %>%
+  wordcloud2::wordcloud2(size=2)
+#with(wordcloud(word, n, random.order = FALSE, max.words = 50, colors=pal))
+
+
+saveWidget(memorias_postumas,"memorias_postumas_cloud.html",selfcontained = F)
+webshot::webshot("memorias_postumas_cloud.html","memorias_postumas_cloud.png",
+                 vwidth = 1992, vheight = 1744, delay =10)
+```
+
+
+## Quincas Borba {-}
+
+```{r}
+
+quincas <- df_livros_clean %>%
+  filter(livro=="Quincas_Borba") %>%
+  count(word, sort=T) %>%
+  head(100) %>%
+  wordcloud2::wordcloud2(size=2.5)
+#with(wordcloud(word, n, random.order = FALSE, max.words = 50, colors=pal))
+
+saveWidget(quincas,"quincas_cloud.html",selfcontained = F)
+webshot::webshot("quincas_cloud.html","quincas_cloud.png",vwidth = 1992, vheight = 1744, delay =10)
+```
+
+
+## Esaú e Jacob {-}
+
+```{r}
+
+esau_jacob <- df_livros_clean %>%
+  filter(livro=="Esau_Jacob") %>%
+  count(word, sort=T) %>%
+  head(300) %>%
+  wordcloud2::wordcloud2(size=1.5)
+#with(wordcloud(word, n, random.order = FALSE, max.words = 50, colors=pal))
+
+
+saveWidget(esau_jacob,"esau_jacob_cloud.html",selfcontained = F)
+webshot::webshot("esau_jacob_cloud.html","esau_jacob_cloud.png",vwidth = 1992, vheight = 1744, delay =10)
+```
+
+
+## A Mão e a Luva {-}
+
+```{r}
+
+mao_luva <- df_livros_clean %>%
+  filter(livro=="Mao_E_A_Luva") %>%
+  count(word, sort=T) %>%
+  head(100) %>%
+  wordcloud2::wordcloud2(size=2.5)
+#with(wordcloud(word, n, random.order = FALSE, max.words = 50, colors=pal))
+
+saveWidget(mao_luva,"mao_luva_cloud.html",selfcontained = F)
+webshot::webshot("mao_luva_cloud.html","mao_luva_cloud.png",vwidth = 1992, vheight = 1744, delay =10)
 ```
 
 # TF-IDF
@@ -235,21 +291,53 @@ machado_tf_idf %>%
 
 Fazendo uma análise de tópicos:
 
-```{r topic-modeling, cache=T}
 
-dfm_word_freq <- df_livros_clean  %>%
-  count(livro, word, sort=T) %>%
-    cast_dfm(livro, word, n)
+## Capítulos de Dom Casmurro (4 tópicos)
+
+
+```{r}
+df_casmurro <- df_livros_raw%>%filter(livro=="Dom_Casmurro")%>%mutate(row=row_number())
+
+chptr_start <- df_casmurro %>%
+  filter(texto%in%romanos) %>%
+  pull(row)
+
+chptr_start <- c(chptr_start, nrow(df_casmurro))
+
+df_casmurro_cap <- 1:(length(chptr_start)-1) %>% map_dfr(~{
+   df_casmurro %>%
+     slice(chptr_start[.x]:(chptr_start[(.x+1)]-1)) %>%
+     mutate(capitulo=str_c("Capítulo ", .x))
+  
+})
+
+
+df_casmurro_clean <- df_casmurro_cap %>%
+  select(-row) %>%
+  filter(!(texto %in% romanos) & texto!="") %>%
+  mutate(line = row_number()) %>%
+  unnest_tokens(word, texto) %>%
+  anti_join(df_stopwords_pt) 
+
+```
+
+```{r topic-modeling-chptr, cache=T}
+dfm_word_freq_casmurro <- df_casmurro_clean  %>%
+  count(capitulo, word, sort=T) %>%
+  cast_dfm(capitulo, word, n)
 
 # atenção: muito demorado!
-topic_model <- stm(dfm_word_freq, K = 4, 
-                   verbose = FALSE, init.type = "Spectral")
+topic_model_casmurro <- stm(dfm_word_freq_casmurro, K = 4, 
+                            verbose = FALSE, init.type = "Spectral")
+
 ```
+
+
 
 Palavras associadas aos 4 tópicos:
 
-```{r}
-td_beta <- tidy(topic_model)
+```{r, fig.height=6}
+td_beta <- tidy(topic_model_casmurro)
 
 td_beta %>%
     group_by(topic) %>%
@@ -259,27 +347,11 @@ td_beta %>%
            term = reorder_within(term, beta, topic)) %>%
     ggplot(aes(term, beta, fill = as.factor(topic))) +
     geom_col(alpha = 0.8, show.legend = FALSE) +
-    facet_wrap(~ topic, scales = "free_y") +
+    facet_wrap(~ topic, scales = "free_y", ncol=2) +
     coord_flip() +
     scale_x_reordered() +
     labs(x = NULL, y = expression(beta),
          title = "Maiores probabilidades de palavras por tópico")
-```
-
-
-Distribuição de tópicos por livros
-
-```{r}
-td_gamma <- tidy(topic_model, matrix = "gamma",                    
-                 document_names = rownames(dfm_word_freq))
-
-ggplot(td_gamma, aes(gamma, fill = as.factor(topic))) +
-  geom_histogram(alpha = 0.8, show.legend = FALSE) +
-  facet_wrap(~ topic, ncol = 2) +
-  labs(title = "Distribuição de probabilidade de documento para cada tópico",
-       subtitle = "Cada tópico é associado a 1-2 palavras",
-       y = "Número de Livros", x = expression(gamma)) 
-
 ```
 
 
