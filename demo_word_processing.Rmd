@@ -12,7 +12,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message=F)
+knitr::opts_chunk$set(echo = TRUE, message=F, fig.align='center')
 ```
 
 ```{r, message=F}
@@ -27,12 +27,29 @@ library(drlib)
 
 # OCR
 
+Utilizando a biblioteca `tesseract` para extrair o texto de uma imagem.
+Verificando quais línguas estão disponíveis. Precisamos de português, se não estiver instalado, rodar `tesseract_download("por")`.
+
 ```{r}
 #tesseract_download("por")
 tesseract_info()$available
 
 ```
 
+Vamos utilizar está página de Dom Casmurro:
+
+```{r}
+knitr::include_graphics("dom_casmurro.jpg")
+```
+
+Primeiramente, cropamos o texto para melhorar o processamento:
+
+```{r}
+knitr::include_graphics("dom_casmurro_crop2.png")
+```
+
+
+Utilizando a biblioteca `magick` para melhorar a imagem para processamento:
 
 ```{r}
 texto_crop <- image_read("dom_casmurro_crop2.png") %>%
@@ -46,6 +63,15 @@ cat(texto_crop)
 ```
 
 # Palavras Mais Frequentes
+
+Para as próximas seções, utilizaremos 5 romances de Machado de Assis em formato `.txt`: 
+  
+* Dom Casmurro  
+* Memórias Póstumas de Brás Cubas  
+* Quincas Borba  
+* Esaú e Jacob  
+* A Mão e a Luva  
+
 
 ```{r}
 
@@ -73,6 +99,9 @@ df_livros_raw <- names(livros) %>% map_dfr(~{
 #   filter(str_detect(texto, "Mrs"))
 ```
 
+
+Removendo stopwords e numerações em algarismos romanos (que indicam o número do capítulo)
+
 ```{r}
 
 romanos <- c(as.character(utils::as.roman(1:200)),paste0(as.character(utils::as.roman(1:200)),"."))
@@ -86,7 +115,12 @@ df_livros_clean <- df_livros_raw %>%
   mutate(line = row_number()) %>%
   unnest_tokens(word, texto) %>%
   anti_join(df_stopwords_pt) 
+```
 
+
+Exibindo as palavras mais frequentes presentes em Dom Casmurro
+
+```{r}
 
 df_livros_clean %>%
   filter(livro=="Dom_Casmurro") %>%
@@ -106,46 +140,15 @@ df_livros_clean %>%
 ```
 
 
-# TF-IDF
-
-```{r}
-
-
-machado_tf_idf <- df_livros_clean %>%
-    count(livro, word, sort = TRUE) %>%
-    bind_tf_idf(word, livro, n) %>%
-    arrange(-tf_idf) %>%
-    group_by(livro) %>%
-    top_n(10) %>%
-    ungroup
-
-machado_tf_idf %>%
-  mutate(word = reorder_within(word, tf_idf, livro)) %>%
-  ggplot(aes(word, tf_idf*1000, fill = livro)) +
-  geom_col(alpha = 0.8, show.legend = FALSE) +
-  facet_wrap(~ livro, scales = "free", ncol = 3,
-             labeller=labeller(livro=c(Dom_Casmurro="Dom Casmurro",
-                                       Esau_Jacob="Esaú e Jacob",
-                                       Mao_E_A_Luva="A Mão e a Luva",
-                                       Memorias_Postumas="Memórias Póstumas",
-                                       Quincas_Borba="Quincas Borba"))) +
-  scale_x_reordered() +
-  coord_flip() +
-    theme(strip.text=element_text(size=11)) +
-  labs(x = NULL,  y="tf-idf x1000",
-       title = "Maiores tf-idf nos Romances de Machado de Assis")
-```
-
-
 # Word Cloud
 
+Podemos exibir a frequência de palavras utilizando uma wordcloud:
 
 ```{r}
-#library(gridExtra)
 
 
 
-
+## tentativa de facet: pesquisar mais
 
 # 
 # wordclouds <- df_livros_clean$livro%>%unique() %>% map(~{
@@ -180,27 +183,70 @@ machado_tf_idf %>%
 #   theme_minimal() +
 #   facet_wrap(~livro)
 
+
+
 pal <- RColorBrewer::brewer.pal(8,"Dark2")
 df_livros_clean %>%
-    filter(livro=="Mao_E_A_Luva") %>%
-    count(word, sort=T) %>%
-    with(wordcloud(word, n, random.order = FALSE, max.words = 50, colors=pal))
+  filter(livro=="Dom_Casmurro") %>%
+  count(word, sort=T) %>%
+with(wordcloud(word, n, random.order = FALSE, max.words = 50, colors=pal))
+
+
 
 ```
+
+# TF-IDF
+
+Uma métrica utilizada em processamento de texto é o tf-idf (term frequence - inverse document frequence). Esta métrica leva em conta a frequência de um termo em um livro (document) comparada à frequência deste termo em outros livros:
+
+```{r}
+
+
+machado_tf_idf <- df_livros_clean %>%
+    count(livro, word, sort = TRUE) %>%
+    bind_tf_idf(word, livro, n) %>%
+    arrange(-tf_idf) %>%
+    group_by(livro) %>%
+    top_n(10) %>%
+    ungroup
+
+machado_tf_idf %>%
+  mutate(word = reorder_within(word, tf_idf, livro)) %>%
+  ggplot(aes(word, tf_idf*1000, fill = livro)) +
+  geom_col(alpha = 0.8, show.legend = FALSE) +
+  facet_wrap(~ livro, scales = "free", ncol = 3,
+             labeller=labeller(livro=c(Dom_Casmurro="Dom Casmurro",
+                                       Esau_Jacob="Esaú e Jacob",
+                                       Mao_E_A_Luva="A Mão e a Luva",
+                                       Memorias_Postumas="Memórias Póstumas",
+                                       Quincas_Borba="Quincas Borba"))) +
+  scale_x_reordered() +
+  coord_flip() +
+    theme(strip.text=element_text(size=11)) +
+  labs(x = NULL,  y="tf-idf x1000",
+       title = "Maiores tf-idf nos Romances de Machado de Assis")
+```
+
+
+
 
 
 # Topic Modeling
 
-```{r, cache=T}
+Fazendo uma análise de tópicos:
+
+```{r topic-modeling, cache=T}
 
 dfm_word_freq <- df_livros_clean  %>%
   count(livro, word, sort=T) %>%
     cast_dfm(livro, word, n)
 
+# atenção: muito demorado!
 topic_model <- stm(dfm_word_freq, K = 4, 
                    verbose = FALSE, init.type = "Spectral")
 ```
 
+Palavras associadas aos 4 tópicos:
 
 ```{r}
 td_beta <- tidy(topic_model)
@@ -217,10 +263,11 @@ td_beta %>%
     coord_flip() +
     scale_x_reordered() +
     labs(x = NULL, y = expression(beta),
-         title = "Highest word probabilities for each topic",
-         subtitle = "Different words are associated with different topics")
+         title = "Maiores probabilidades de palavras por tópico")
 ```
 
+
+Distribuição de tópicos por livros
 
 ```{r}
 td_gamma <- tidy(topic_model, matrix = "gamma",                    
