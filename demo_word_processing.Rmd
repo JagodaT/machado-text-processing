@@ -19,7 +19,6 @@ knitr::opts_chunk$set(echo = TRUE, message=F, fig.align='center')
 library(tidyverse)
 library(tesseract)
 library(magick)
-library(wordcloud)
 library(tidytext)
 library(stm)
 library(drlib)
@@ -327,7 +326,7 @@ dfm_word_freq_casmurro <- df_casmurro_clean  %>%
   cast_dfm(capitulo, word, n)
 
 # atenção: muito demorado!
-topic_model_casmurro <- stm(dfm_word_freq_casmurro, K = 4, 
+topic_model_casmurro <- stm(dfm_word_freq_casmurro, K = 2, 
                             verbose = FALSE, init.type = "Spectral")
 
 ```
